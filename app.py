@@ -16,8 +16,8 @@ from flask import make_response
 # Flask app should start in global layout
 app = Flask(__name__)
 
-#Smartsheet Access Token
-SMARTSHEET_ACCESS_TOKEN='[Introduce your Token here]'
+#Smartsheet Access Token. This code will be updated very soon and Token deprecated
+SMARTSHEET_ACCESS_TOKEN='3evtahorlb9df7bd6imx1rzdyj'
 SmartToken= 'Bearer '+SMARTSHEET_ACCESS_TOKEN
 
 @app.route('/webhook', methods=['POST'])
