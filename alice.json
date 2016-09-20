@@ -1,0 +1,7 @@
+{
+  "name": "API.AI - Spark advance integration",
+  "description": "Advance integration of api.ai, Spark and SmartSheet",
+  "repository": "https://github.com/alexgrgr/apiai-fulfillment",
+  "logo": "http://xvir.github.io/img/apiai.png",
+  "keywords": ["api.ai", "natural language"]
+}
