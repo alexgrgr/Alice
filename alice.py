@@ -2,7 +2,7 @@
 # -*- coding: UTF-8 -*-
 ################################################################################
 #                                 ALICEBOT                                     #
-#                  https://alice-apiai.herokuapp.com:443                       #
+#               https://alice-apiai.herokuapp.com:443/apiai                    #
 # It will wait until a POST with path=/webhook message is sent to that socket  #
 # and perform the action specified:                                            #
 #   ·Search query in smartsheet [OK]                                           #
@@ -14,7 +14,7 @@
 # compute the required action:                                                 #
 #         ______________                               ______________          #
 #        |  From SPARK |                              | From API.AI |          #
-#         -------------                               |-------------|          #
+#        |-------------|                              |-------------|          #
 #        |   message   |                              |  message    |          #
 #        |  personId   |                              |  actions    |          #
 #        | personEmail |                              | parameters  |          #
@@ -93,20 +93,38 @@ def apiai_webhook(req):
     # api.ai request to search PAM of a particular partner
     elif action == 'search.pam':
         print ("Asked to search PAM")
+        partner = req.get("result").get("parameters").get("partner")
+        if sdk.get_user(req, sbuffer, user):
+            pam = sdk.search_pam (smartsheet, user, partner)
+            string_res= str(pam)
+        else:
+            string_res="Fallo en la obtención del usuario desde Spark. Pruebe \
+                        de nuevo, por favor."
+            print(string_res)
+
+    #api.ai request to search PAM of the user that solicites it
+    elif action == 'search.mypam':
+        print ("Asked to search my PAM")
         sdk.get_user(req, sbuffer, user)
-        string_res="No Yet Implemented (alice:line74)"
-        #if sdk.is_partner(smartsheet, user): string_res = sdk.search_pam(req)
+        if sdk.get_user(req, sbuffer, user):
+            pam = sdk.search_pam (smartsheet, user)
+            string_res= pam
+        else:
+            string_res="Fallo en la obtención del usuario desde Spark. Pruebe \
+                        de nuevo, por favor."
+            print(string_res)
+        string_res="No Yet Implemented (alice:line105)"
 
     # api.ai request to add a Partner to a specific Team
     elif action == 'add.sparkclinic':
         print ("Asked to set Spark Clinic")
         if sdk.get_user(req, sbuffer, user):
-            print("User is: "+str(user))
             team = req.get("result").get("parameters").get("sparkclinic")
             print ("team is: "+str(team))
             string_res  = spark.add_to_team(team, user)
         else:
-            string_res="Fallo en la obtención del usuario desde Spark"
+            string_res="Fallo en la obtención del usuario desde Spark. Pruebe \
+                        de nuevo, por favor."
             print(string_res)
     else:
         string_res = "Ooops, se ha solicitado a Alice algo no implementado\n\t \

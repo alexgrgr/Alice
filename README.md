@@ -1,4 +1,4 @@
-#How use a Spark Bot to answer a user *natural language* question with external data
+# How to use a Spark Bot to answer a user´s *natural language* question with external data
 
 This example shows how you can use `Api.ai` and some Spark workarounds to provide
 information allocated at external sources in an easy way. This information and sources are described later in [`actions`](#actions).
@@ -24,15 +24,17 @@ in a 1-to-1 room. ***Not yet implemented***
 
 + `add.sparkclinic`: partner will be added to the room he asked to be in.
 
+**Note**: code for smartsheet is currently adapted to use specific Sheet IDs and
+rows. This will change in a future to work with any IDs.
+
 ###Environmental variables
 You will also need to set this *environmental variables* in [*Heroku*](https://devcenter.heroku.com/articles/config-vars#setting-up-config-vars-for-a-deployed-application "Set Env variables"):
 
-| Variable | Value |
-| --------:| :----- |
-| SMARTSHEET_ACCESS_TOKEN | Your *Smartsheet*´s Token to access *API* |
-| SPARK_ACCESS_TOKEN | Your bot´s Token to access *Spark* *API* |
-| BOT_EMAIL | Your bot´s email to discard its own messages |
-
+|                Variable | Value                                        |
+|------------------------:|:---------------------------------------------|
+| SMARTSHEET_ACCESS_TOKEN | Your *Smartsheet*´s Token to access *API*    |
+|      SPARK_ACCESS_TOKEN | Your bot´s Token to access *Spark* *API*     |
+|               BOT_EMAIL | Your bot´s email to discard its own messages |
 ####How to get a *Token*
 
 + **Smartsheet**: follow steps in [Documentation](http://smartsheet-platform.github.io/api-docs/#generating-access-token "Generate Access Token")

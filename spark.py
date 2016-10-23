@@ -2,7 +2,7 @@
 # -*- coding: UTF-8 -*-
 ################################################################################
 #                                 SPARKLIB                                     #
-#                  https://alice-apiai.herokuapp.com:443                       #
+#               https://alice-apiai.herokuapp.com:443/apiai                    #
 # It will wait until a POST with path=/webhook message is sent to that socket  #
 # and perform a search of the parameter 'employee' on all sheets on Smartsheet #
 ################################################################################
@@ -11,6 +11,7 @@ import json
 import requests
 import os
 
+# Spark's header with Token defined in environmental variables
 spark_header = {
         'Authorization': 'Bearer ' + os.environ.get('SPARK_ACCESS_TOKEN', None),
         'Content-Type': 'application/json'
