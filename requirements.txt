@@ -5,3 +5,5 @@ requests-toolbelt
 six
 certifi
 python-dateutil
+apiai
+time

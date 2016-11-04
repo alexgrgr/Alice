@@ -1,0 +1,32 @@
+#!/usr/bin/python
+# -*- coding: UTF-8 -*-
+################################################################################
+#                                    apiai                                     #
+#                                                                              #
+# SDK for api.ai                                                               #
+################################################################################
+
+import json
+import apiai
+import requests
+import os
+
+
+def apiai_send (ai, sbuffer):
+    # Prepares and sends message to apiai the response is returned as-is
+    request = ai.text_request()
+    request.lang = 'es'  # optional, default value equal 'en'
+    # Session ID has been generated before and storaged on array
+    print ("Setting sessionId: "+ sbuffer['sessionId'])
+    request.session_id = sbuffer['sessionId']
+    print("Setting message: "+ sbuffer['message'])
+    request.query = sbuffer['message']
+    response = json.loads(request.getresponse().read().decode('UTF-8'))
+    print (response)
+    return response
+
+def apiai2spark (JSON, sbuffer):
+    # Prepare message to send back to Spark
+    print ("Converting from apiai to Spark format...")
+    sbuffer['message'] = JSON['result']['fulfillment']['speech']
+    return True

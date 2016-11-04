@@ -8,6 +8,7 @@
 
 import requests
 import spark
+import uuid
 import time
 import os
 
@@ -58,40 +59,40 @@ def answer_json(speech):
         "source": "alice-apiai"
     }
 
-
 def get_user(req, sbuffer, user):
-    # This will search in buffer for the message, to retrieve personID
-    for x in range(1, 20):
-        print("Mensaje de Spark: \t"+str(sbuffer[x]['message']))
-        print("Mensaje de API.ai: \t"+str(req.get("result").get("resolvedQuery")))
-        if req.get("result").get("resolvedQuery") in sbuffer[x]['message']:
-            user['personId']   = sbuffer[x]['personId']
-            user['personEmail']= sbuffer[x]['personEmail']
-            user['displayName']= sbuffer[x]['displayName']
-            found= True
-            print("Message sent by:    \n   personId: \t"+user['personId']
-                                  +"\n   personEmail: \t"+user['personEmail']
-                                  +"\n   displayName: \t"+user['displayName'])
-            break
-        else:
-            # [Debug]
-            #print("Los mensajes no coinciden. Siguiente mensaje.")
-            found=False
-    if not found: print ("No coincidence among array")
+    # This will retrieve personID, personEmail and displayName
+    #print("API.ai ID: \t" + str(req.get("sessionId")))
+    #print(" Spark ID: \t" + str(sbuffer['sessionId']))
+    #if str(req.get("id"))[15:] in str(sbuffer['sessionId']):
+    user['personId']   = sbuffer['personId']
+    user['personEmail']= sbuffer['personEmail']
+    user['displayName']= sbuffer['displayName']
+    found= True
+    print("Message sent by:    \n   personId: \t" + user['personId']
+                          +"\n   personEmail: \t" + user['personEmail']
+                          +"\n   displayName: \t" + user['displayName'])
+    #else:
+        # [Debug]
+        #print("Los mensajes no coinciden. Siguiente mensaje.")
+    #    found=False
+    if not found: print ("Error, different sessionId")
     return found
 
-def is_partner (smartsheet, user):
-    # If user appears on Smartsheet, then is must be a Cisco Spain Partner
-    search_res = smartsheet.Search.search(user['personEmail'])
-    if search_res.results[0].text == user['PersonEmail']: return True
-    else: return False
-
-def is_cisco (smartsheet, user):
+def is_cisco (user):
     # If users email contains @cisco.com, then is must be a Cisco Employee
+    print ("User email [is_cisco]" +  user['personEmail'])
     if "@cisco.com" in user['personEmail']: return True
     else: return False
 
-def search_pam (smartsheet, user, partner=0):
+def is_partner (smartsheet, user):
+    # If user appears on Smartsheet, then is must be a Cisco Spain Partner
+    # this information is on sheetid= 6064162607523716
+    sheetId = 6064162607523716
+    search_res = smartsheet.Search.search_sheet(sheetId, user['personEmail'])
+    if search_res.results[0].text in user['PersonEmail']: return True
+    else: return False
+
+def search_pam (smartsheet, user, partner=None):
     # The PAM of the specified user is searched or user's PAM. The sheet with
     # this information has sheetid= 6064162607523716
     sheetId = 6064162607523716
@@ -99,7 +100,38 @@ def search_pam (smartsheet, user, partner=0):
     # user's one. This info can only be disclosed internally, so Alice should
     # check first if this user is a Cisco employee. If asking for own PAM, Alice
     # will check to what partner user belongs to.
-    if partner != 0:
+    if partner is None:
+        print ("no partner specified")
+        # In this case, check if user is partner. If true, retreive its pam
+        if is_cisco (user):
+            print ("Yeah. User is Cisco Employee")
+            # Maybe is a Cisco employee and asks for its pam, something not possible
+            string_res = "Pero " + spark.mention(user['displayName'],
+                                                 user['personEmail']) + ", usted \
+                                            es empleado de Cisco. No tiene PAM."
+        #-----------------------------Problem here-----------------------------#
+        elif is_partner (smartsheet, user):
+            print("Yeah, user is partner")
+            search_res = smartsheet.Search.search_sheet(sheetId, user['personEmail'])
+            rowId  = search_res.results[0].object_id
+            # With the parameters needed to get the entire row, we request it
+            row = smartsheet.Sheets.get_row(sheetId, rowId,
+                           include='discussions,attachments,columns,columnType')
+            # --The following is a botched job--
+            # JSON is formatted in such a way that the cell where I know where
+            # the data I want is in here:
+            pam = row.cells[1].value
+            string_res = spark.mention(user['displayName'],
+                                     user['personEmail']) + ", su PAM es:\
+                                      _"+ pam + "_"
+        #----------------------------------------------------------------------#
+        else:
+            # In this case, user is not a partner, nor a Cisco Employee. cannot
+            # see internals
+            string_res = user['displayName'] + ", usted no tiene permisos para \
+                                            visualizar datos internos."
+    else:
+        print("Partner specified")
         # PAM for the user that is asked, if he/she is a Cisco Employee
         if is_cisco (smartsheet, user):
             print ("Yeah. User is Cisco Employee")
@@ -115,25 +147,14 @@ def search_pam (smartsheet, user, partner=0):
             # the data I want is in here:
             partner = row.cells[1].value
             pam = row.cells[0].value
-            string_res = "El PAM para el partner " + partner + " es: " + str(pam)
+            string_res = "El PAM para el partner **" + partner + "** \
+                                             es: _" + str(pam) + "_"
         else:
-        #    if is_partner (smartsheet, user) == false:
-            displayName = spark.get_displayName(user['personId'])
-            string_res = displayName + ", usted no tiene permisos para \
+            # In this case, user is not a partner, nor a Cisco Employee. cannot
+            # see internals
+            string_res = user['displayName'] + ", usted no tiene permisos para \
                                             visualizar datos internos."
-    else:
-        # In this case, check if user is partner
-        if is_partner (smartsheet, user):
-            search_res = smartsheet.Search.search_sheet(sheetId, user['personEmail'])
-            rowId  = search_res.results[0].object_id
-            # With the parameters needed to get the entire row, we request it
-            row = smartsheet.Sheets.get_row(sheetId, rowId,
-                           include='discussions,attachments,columns,columnType')
-            # --The following is a botched job--
-            # JSON is formatted in such a way that the cell where I know where
-            # the data I want is in here:
-            pam = row.cells[1].value
-            string_res = pam
+    print (string_res)
     return string_res
 
 def buffer_it(JSON, sbuffer):
@@ -142,7 +163,8 @@ def buffer_it(JSON, sbuffer):
     # First step is to discard bot's own messages
     if JSON['data']['personEmail'] != os.environ.get('BOT_EMAIL',
                                                                 '@sparkbot.io'):
-        messageId= JSON['data']['id']
+        roomId    = JSON['data']["roomId"]
+        messageId = JSON['data']['id']
         print("Message ID: "+messageId)
         # Message is ciphered. Unciphered message must be GET from Spark
         message = requests.get(url='https://api.ciscospark.com/v1/messages/'
@@ -154,7 +176,8 @@ def buffer_it(JSON, sbuffer):
         # then PersonId and PersonEmail would be extracted from it.
         # Dictionary Containing info would be lke this:
         # -------------------
-        # |    timestamp    |  If content is too old, it could be overwritten
+        # |    sessionId    |  Identifies message at API.ai
+        # !      roomId     |  Saving just in case
         # |message decrypted|  Used to compare with the message from api.ai
         # |    personId     |  Speaker unique ID
         # |   personEmail   |  Speaker unique email
@@ -167,24 +190,28 @@ def buffer_it(JSON, sbuffer):
         personEmail     = JSON.get("personEmail")
         # The Display Name of the person must be GET from Spark too
         displayName     = spark.get_displayName(personId)
-        # Finally, a timestamp to be able to erase old messages
-        timenow =time.time()
+        # Finally, a timestamp to let apiai identify messages.
+        # [WARNING] UUIDV1 specifies string + time ID. Maybe there is need to use
+        # roomId as identification, but not very well specified in Docs
+        #sessionId = uuid.uuid1()
+        # Session ID is based on roomId
+        sessionId = uuid.uuid5(uuid.NAMESPACE_DNS, str(roomId))
+        #sessionId = roomId
         print ("Message Decrypted: "  + messagedecrypt
+                      + "\nroomId: \t"+ roomId
                     + "\npersonId: \t"+ personId
                   +"\npersonEmail: \t"+ personEmail
                   +"\ndisplayName: \t"+ displayName
-                    +"\ntimestamp: \t"+ str(timenow))
+                         +"\nuuid: \t"+ str(sessionId))
         # Save all in buffer and then wait for new webhook
-        for x in range(1, 20):
-            if ((timenow - sbuffer[x]['timestamp']) > float(5)):
-                sbuffer[x]['timestamp']  = time.time()
-                sbuffer[x]['message']    = messagedecrypt
-                sbuffer[x]['personId']   = personId
-                sbuffer[x]['personEmail']= personEmail
-                sbuffer[x]['displayName']= displayName
-                break
-        print ("Buffer ACK. Timestamp= "+str(sbuffer[x]['timestamp']))
-        #print ("Buffer ACK. personId= "+mbuffer['personId'])
+        sbuffer['sessionId']  = str(sessionId)
+        sbuffer['roomId']     = roomId
+        sbuffer['message']    = messagedecrypt
+        sbuffer['personId']   = personId
+        sbuffer['personEmail']= personEmail
+        sbuffer['displayName']= displayName
+        print ("Buffer ACK. UUID= " + str(sessionId))
         return True
     else:
+        print ("message from bot: ignoring")
         return False

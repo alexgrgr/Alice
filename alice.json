@@ -1,7 +1,33 @@
 {
   "name": "API.AI - Spark advance integration",
-  "description": "Advance integration of api.ai, Spark and SmartSheet",
+  "description": "Advance Limited Integration Capabilities  Exposed",
   "repository": "https://github.com/alexgrgr/apiai-fulfillment",
   "logo": "http://xvir.github.io/img/apiai.png",
-  "keywords": ["api.ai", "natural language"]
-}
+  "keywords": ["api.ai", "natural language"],
+  "env": {
+    "APP_NAME": {
+      "description": "alice-apiai",
+      "value": ""
+    },
+    "APIAI_ACCESS_TOKEN": {
+      "description": "Client access token for Api.ai",
+      "value": ""
+    },
+    "SPARK_ACCESS_TOKEN": {
+      "description": "Spark Access Token",
+      "value": ""
+    },
+    "SMARTSHEET_ACCESS_TOKEN": {
+      "description": "Smartsheet Access Token",
+      "value": ""
+    },
+    "APIAI_LANG": {
+      "description": "Agent language",
+      "value": "es"
+    },
+    "BOT_EMAIL": {
+      "description": "Email Ending with @sparkbot.io Here",
+      "value": ""
+    },
+
+  }
