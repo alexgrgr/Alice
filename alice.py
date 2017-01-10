@@ -64,10 +64,14 @@ smartsheet = smartsheet.Smartsheet()
 
 # Buffer for capturing messages from Spark
 sbuffer = {"timestamp":float(6),"sessionId":"","roomId":"","message":"",
-                                "personId":"","personEmail":"","displayName":""}
+           "personId":"","personEmail":"","displayName":"",
+           "file":{"name":"","path":"","filetype":""}}
 # Buffer for capturing messages from api.ai
-abuffer = {k: {"timestamp":float(6),"message":"","action":"",
-                                             "parameters":""} for k in range(4)}
+#abuffer = {k: {"timestamp":float(6),"message":"","action":"",
+#                                             "parameters":""} for k in range(4)}
+abuffer = {"sessionId":"","confident":"", "message":"","action":"",
+                                "parameters":""}
+
 # Defining user's dict
 user    = {"personId":"","personEmail":"","displayName":""}
 
@@ -78,7 +82,7 @@ def webhook():
     # Every message from Spark is received here. I will be analyzed and sent to
     # api.ai response will then sent back to Spark
     req = request.get_json(silent=True, force=True)
-    print ('[Spark]')
+    #print ('[Spark]')
     res = spark_webhook(req, start)
     print (res)
     return None
@@ -99,14 +103,20 @@ def spark_webhook (req, start):
     # and a personEmail that will be buffered for future use
     if sdk.buffer_it(req, sbuffer):
         # Once this is done, we need to prepare and send the message for APIai
-        JSON = nlpApiai.apiai_send (ai, sbuffer)
-        nlpApiai.apiai2spark(JSON, sbuffer)
-        elapsed= time.time() - start
+        status = nlpApiai.apiai_send (ai, sbuffer, abuffer)
+        #sdk.confident()
+        # Answer from api.ai may include an action to post attachments
+        if "att." in str(abuffer['action']):
+            status = sdk.prepare_attachment(sbuffer, abuffer)
+            print("Status attachement: "+ str(status))
+        #print("Convert to spark")
+        nlpApiai.apiai2spark(abuffer, sbuffer)
         status = spark.bot_answer(
-                                sbuffer['message'] + " \n\n Time elapsed: " +
-                                                str(timedelta(seconds=elapsed)),
-                                None,
-                                sbuffer['roomId'])
+                            sbuffer['message'] + " \n\n \n\n Time elapsed: " +
+                                    str(timedelta(seconds=time.time() - start)),
+                            sbuffer['file'],
+                            None,
+                            sbuffer['roomId'])
     else: status = "Error buffering"
     return status
 
@@ -127,6 +137,25 @@ def apiai_webhook(req):
                         de nuevo, por favor."
 
     # api.ai request to search PAM of a particular partner
+    elif action == 'search.am':
+        print ("Asked to search AM")
+        client = req.get("result").get("parameters").get("client")
+        if sdk.get_user(req, sbuffer, user):
+            am = sdk.search_am (smartsheet, user, client)
+            string_res= str(am)
+        else:
+            string_res="Fallo en la obtención del usuario desde Spark. Pruebe \
+                        de nuevo, por favor."
+        print (string_res)
+
+        #api.ai request to search PAM of the user that ask for it
+    elif action == 'search.myam':
+        print ("Asked to search my AM")
+        if sdk.get_user(req, sbuffer, user):
+            am = sdk.search_am (smartsheet, user)
+            string_res= str(am)
+        print(string_res)
+        # api.ai request to search PAM of a particular partner
     elif action == 'search.pam':
         print ("Asked to search PAM")
         partner = req.get("result").get("parameters").get("partner")
@@ -173,4 +202,4 @@ def apiai_webhook(req):
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))
     print ("Starting app on port " +  str(port))
-    app.run(debug=False, port=port, host='0.0.0.0', threaded=True)
+    app.run(debug=True, port=port, host='0.0.0.0', threaded=True)

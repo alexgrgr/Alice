@@ -23,7 +23,7 @@ spark_header = {
 # Searchs an specified text everywhere in your account sheets.
 def search_employee (smartsheet, query, parameter=0):
     search_res = smartsheet.Search.search(query)
-    print ("Se ha pedido buscar: " +query)
+    #print ("Se ha pedido buscar: " +query)
     # Result is a smartsheet.models.SearchResult object. This particular
     # implementation is going to take into account only the first matched search.
     # The parameters needed to get the values of the cell on the right are
@@ -80,7 +80,7 @@ def get_user(req, sbuffer, user):
 
 def is_cisco (user):
     # If users email contains @cisco.com, then is must be a Cisco Employee
-    print ("User email [is_cisco]" +  user['personEmail'])
+    #print ("User email [is_cisco]" +  user['personEmail'])
     if "@cisco.com" in user['personEmail']: return True
     else: return False
 
@@ -89,8 +89,59 @@ def is_partner (smartsheet, user):
     # this information is on sheetid= 6064162607523716
     sheetId = 6064162607523716
     search_res = smartsheet.Search.search_sheet(sheetId, user['personEmail'])
-    if search_res.results[0].text in user['PersonEmail']: return True
-    else: return False
+    try:
+        if search_res.results[0].text in user['PersonEmail']: return True
+        else: return False
+    except:
+        return False
+
+def search_am (smartsheet, user, client=None):
+    # The PAM of the specified user is searched or user's PAM. The sheet with
+    # this information has sheetid= 8683984747030404
+    sheetId = 6610030939137924
+    # if there is a partner string, then you are asking for a PAM different to
+    # user's one. This info can only be disclosed internally, so Alice should
+    # check first if this user is a Cisco employee. If asking for own PAM, Alice
+    # will check to what partner user belongs to.
+    if client is None:
+        #print ("no client specified")
+        # In this case, check if user is partner. If true, retreive its pam
+        if is_cisco (user):
+            #print ("Yeah. User is Cisco Employee")
+            # Maybe is a Cisco employee and asks for its pam, something not possible
+            string_res = "Pero " + spark.mention(user['displayName'],
+                                                 user['personEmail']) + ", usted es empleado de Cisco. No tiene AM."
+    else:
+        #print("client specified")
+        # PAM for the user that is asked, if he/she is a Cisco Employee
+        if is_cisco (user):
+            #print ("Yeah. User is Cisco Employee")
+            search_res = smartsheet.Search.search_sheet(sheetId, client)
+            # As in search_employee, Result is a smartsheet.models.SearchResult
+            # object.
+            try:
+                rowId  = search_res.results[0].object_id
+                # With the parameters needed to get the entire row, we request it
+                row = smartsheet.Sheets.get_row(sheetId, rowId,
+                            include='discussions,attachments,columns,columnType')
+                # --The following is a botched job--
+                # JSON is formatted in such a way that the cell where I know
+                # where the data I want is in here:
+                client = row.cells[1].value
+                am = row.cells[0].value
+            except:
+                string_res = "Disculpe, no tenemos información indexada de " + client + ". Por favor, contacte con _Nombre_ para más información"
+            else:
+                string_res = "El AM para el cliente **" + client + "** \
+                                       es: _" + str(am) + "_ . Si la respuesta \
+                                       no es correcta, [búsquelo aquí]\
+                (https://app.smartsheet.com/b/publish?EQBCT=5b33b0a448284edaa7522944ec4ebf86)"
+        else:
+            # In this case, user is not a partner, nor a Cisco Employee. cannot
+            # see internals
+            string_res = user['displayName'] + ", usted no tiene permisos para visualizar datos internos."
+    print (string_res)
+    return string_res
 
 def search_pam (smartsheet, user, partner=None):
     # The PAM of the specified user is searched or user's PAM. The sheet with
@@ -101,17 +152,16 @@ def search_pam (smartsheet, user, partner=None):
     # check first if this user is a Cisco employee. If asking for own PAM, Alice
     # will check to what partner user belongs to.
     if partner is None:
-        print ("no partner specified")
+        #print ("no partner specified")
         # In this case, check if user is partner. If true, retreive its pam
         if is_cisco (user):
-            print ("Yeah. User is Cisco Employee")
+            #print ("Yeah. User is Cisco Employee")
             # Maybe is a Cisco employee and asks for its pam, something not possible
             string_res = "Pero " + spark.mention(user['displayName'],
-                                                 user['personEmail']) + ", usted \
-                                            es empleado de Cisco. No tiene PAM."
+                                                 user['personEmail']) + ", usted es empleado de Cisco. No tiene PAM."
         #-----------------------------Problem here-----------------------------#
         elif is_partner (smartsheet, user):
-            print("Yeah, user is partner")
+            #print("Yeah, user is partner")
             search_res = smartsheet.Search.search_sheet(sheetId, user['personEmail'])
             rowId  = search_res.results[0].object_id
             # With the parameters needed to get the entire row, we request it
@@ -120,42 +170,57 @@ def search_pam (smartsheet, user, partner=None):
             # --The following is a botched job--
             # JSON is formatted in such a way that the cell where I know where
             # the data I want is in here:
-            pam = row.cells[1].value
+            pam = row.cells[0].value
+            sip = row.cells[2].value
             string_res = spark.mention(user['displayName'],
                                      user['personEmail']) + ", su PAM es:\
-                                      _"+ pam + "_"
+                                      _"+ pam + "_ . " + sip
         #----------------------------------------------------------------------#
         else:
             # In this case, user is not a partner, nor a Cisco Employee. cannot
             # see internals
-            string_res = user['displayName'] + ", usted no tiene permisos para \
-                                            visualizar datos internos."
+            string_res = user['displayName'] + ", usted no tiene permisos para visualizar datos internos."
     else:
-        print("Partner specified")
+        #print("Partner specified")
         # PAM for the user that is asked, if he/she is a Cisco Employee
-        if is_cisco (smartsheet, user):
-            print ("Yeah. User is Cisco Employee")
+        if is_cisco (user):
+            #print ("Yeah. User is Cisco Employee")
             search_res = smartsheet.Search.search_sheet(sheetId, partner)
             # As in search_employee, Result is a smartsheet.models.SearchResult
             # object.
-            rowId  = search_res.results[0].object_id
-            # With the parameters needed to get the entire row, we request it
-            row = smartsheet.Sheets.get_row(sheetId, rowId,
+            try:
+                rowId  = search_res.results[0].object_id
+                # With the parameters needed to get the entire row, we request it
+                row = smartsheet.Sheets.get_row(sheetId, rowId,
                            include='discussions,attachments,columns,columnType')
-            # --The following is a botched job--
-            # JSON is formatted in such a way that the cell where I know where
-            # the data I want is in here:
-            partner = row.cells[1].value
-            pam = row.cells[0].value
-            string_res = "El PAM para el partner **" + partner + "** \
-                                             es: _" + str(pam) + "_"
+                # --The following is a botched job--
+                # JSON is formatted in such a way that the cell where I know where
+                # the data I want is in here:
+                sip = row.cells[2].value
+                partner = row.cells[1].value
+                pam = row.cells[0].value
+            except:
+                string_res = "Disculpe, no tenemos información indexada de dicho partner. Por favor, contacte con _José Méndez_ para más información"
+            else:
+                string_res = "El PAM para el partner **" + partner + "** es: _" + str(pam) + "_ . " + sip
         else:
             # In this case, user is not a partner, nor a Cisco Employee. cannot
             # see internals
-            string_res = user['displayName'] + ", usted no tiene permisos para \
-                                            visualizar datos internos."
+            string_res = user['displayName'] + ", usted no tiene permisos para visualizar datos internos."
     print (string_res)
     return string_res
+
+def prepare_attachment(sbuffer, abuffer):
+    # If there is an action to send a file, it prepares it to send it with the
+    # final message
+    print("Attaching attachements")
+    if  "photo.ctu.next" in str(abuffer['action']):
+        sbuffer['file']['name'] = "Next CTU Content"
+        sbuffer['file']['path'] = "images/nextctu.jpg"
+        sbuffer['file']['filetype'] =  "image/jpg"
+        return True
+
+    else: return False
 
 def buffer_it(JSON, sbuffer):
     # Webhook is triggered if a message is sent to the bot. The JSON and the
@@ -165,11 +230,10 @@ def buffer_it(JSON, sbuffer):
                                                                 '@sparkbot.io'):
         roomId    = JSON['data']["roomId"]
         messageId = JSON['data']['id']
-        print("Message ID: "+messageId)
+        print("Message ID: \t" + messageId)
         # Message is ciphered. Unciphered message must be GET from Spark
         message = requests.get(url='https://api.ciscospark.com/v1/messages/'
-                                            +messageId,
-                                                    headers=spark_header)
+                                            +messageId, headers=spark_header)
         JSON = message.json()
         # Message is used, to compare it with the one received from api.ai.
         # This is needed as it will demonstrate both messages are the same, and

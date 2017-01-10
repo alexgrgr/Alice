@@ -67,7 +67,7 @@ def mention (displayName, personEmail):
     mention = "<@personEmail:"+ personEmail + "|" + displayName +">"
     return mention
 
-def bot_answer(message, user= None, roomId= None):
+def bot_answer(message, files, user= None, roomId= None):
     # This will generate a response to spark
 
     # [Debug]
@@ -76,17 +76,34 @@ def bot_answer(message, user= None, roomId= None):
     # [Debug] print ('Send to room: \t' + str(roomId))
     if roomId != None:
         #Send in roomId received
-        r = requests.post('https://api.ciscospark.com/v1/messages',
+        if files['name'] is "":
+            r = requests.post('https://api.ciscospark.com/v1/messages',
                          headers=spark_header, data=json.dumps({"roomId":roomId,
                                                                "markdown":message
                                                                 }))
+        else:
+            r = requests.post('https://api.ciscospark.com/v1/messages',
+                         headers=spark_header, data=json.dumps({"roomId":roomId,
+                                                               "markdown":message,
+                                      "files": (str(files['name']),
+                                                open(files['path'], 'rb'),
+                                                 str(files['filetype']))
+                                                                            }))
     elif user != None:
-        #Send to user
-        r = requests.post('https://api.ciscospark.com/v1/messages',
-                           headers=spark_header,
-                           data=json.dumps({"personEmail" : user['personEmail'],
-                                                "markdown" : message
-                                            }))
+        if files['name'] is "":
+            #Send to user
+            r = requests.post('https://api.ciscospark.com/v1/messages',
+                               headers=spark_header,
+                               data=json.dumps({"personEmail":user['personEmail'],
+                                                   "markdown":message
+                                                }))
+        else:
+            r = requests.post('https://api.ciscospark.com/v1/messages',
+                               headers=spark_header,
+                               data=json.dumps({"personEmail":user['personEmail'],
+                                                   "markdown":message,
+                                                      "files":files
+                                                }))
     else:
         print ("Send Message: No RoomId or UserId specified")
 
@@ -109,5 +126,5 @@ def bot_answer(message, user= None, roomId= None):
         else:
             response = r.json()
             status= str('Error desconocido: \ '
-                                            + response['errors']['description'])
+                                         + response['errors'][0]['description'])
     return status
