@@ -1,7 +1,9 @@
 Flask==0.10.1
 requests
+ciscosparkapi
 smartsheet-python-sdk
 requests-toolbelt
 six
 certifi
 python-dateutil
+apiai

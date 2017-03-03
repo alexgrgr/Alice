@@ -3,31 +3,44 @@
 ################################################################################
 #                                 ALICEBOT                                     #
 #               https://alice-apiai.herokuapp.com:443/apiai                    #
-# It will wait until a POST with path=/webhook message is sent to that socket  #
-# and perform the action specified:                                            #
-#   ·Search query in smartsheet [OK]                                           #
-#   ·Add user to a team [OK- Not for all teams ]                               #
-#   ·Search Partner's PAM and send it privately to Partner [Waiting]           #
-#   ·Create a demo personal room for trial and sent info to mail [Waiting]     #
-#                                                                              #
-# In a nutshell, we are receiving vital info from both streams, to be able to  #
-# compute the required action:                                                 #
-#         ______________                               ______________          #
-#        |  From SPARK |                              | From API.AI |          #
-#        |-------------|                              |-------------|          #
-#        |   message   |                              |  message    |          #
-#        |  personId   |                              |  actions    |          #
-#        | personEmail |                              | parameters  |          #
-#        | displayName |                              --------------           #
-#        ---------------                                                       #
-# personID or personEmail is needed to know who are we talking to              #
+#               https://alice-apiai.herokuapp.com:443/webhook                  #
+# Flow:                                                                        #
+# Spark--------------                                                          #
+#                   |                                                          #
+#                   --------->Alice------                                      #
+#                                       |                                      #
+#                                       ----------------------> NLP            #
+#                                                                 |            #
+#                                       --------------------------             #
+#                                       |                                      #
+#                        Alice<---------                                       #
+# Spark<-------------if no actions                                             #
+#                      if actions--------> External Sources:                   #
+#                                                           smartsheet,        #
+#                                                           PacoApp,           #
+#                                                           Spark,...          #
+#                                                             |                #
+#                                       -----------------------                #
+#                                       |                                      #
+#                        Alice<---------                                       #
+#                          |                                                   #
+#                          -------------------------------------> NLP          #
+#                                                                 |            #
+#                                       --------------------------             #
+#                                       |                                      #
+# Spark<-----------------Alice<---------                                       #
 ################################################################################
 
 import smartsheet
-import sdk
-import spark
+import time
 import json
 import os
+import apiai
+from datetime import timedelta
+
+import sdk
+import spark
+import nlpApiai
 
 from flask import Flask
 from flask import request
@@ -36,48 +49,74 @@ from flask import make_response
 # Flask app should start in global layout
 app = Flask(__name__)
 
-# Instantiation of Smartsheet object. It is a custom object. Be careful guessing
-# the content in objects. Refer directly to the library code, not API Docs.
+# Instantiation of APIai object.
+ai = apiai.ApiAI(os.environ.get('APIAI_ACCESS_TOKEN', None))
+
+# Instantiation of Smartsheet object
 smartsheet = smartsheet.Smartsheet()
 
 # Buffer for capturing messages from Spark
-sbuffer = {k: {"timestamp":float(6),"message":"","personId":"","personEmail":"",
-                                           "displayName":""} for k in range(20)}
+sbuffer = {"timestamp":float(6),"sessionId":"","roomId":"","message":"",
+           "personId":"","personEmail":"","displayName":"",
+           "file":{"name":"","path":"","filetype":""}}
 # Buffer for capturing messages from api.ai
-abuffer = {k: {"timestamp":float(6),"message":"","action":"",
-                                             "parameters":""} for k in range(4)}
+abuffer = {"sessionId":"","confident":"", "message":"","action":"",
+                                "parameters":""}
+# Buffer for capturing messages from Watson Conversation
+wbuffer = {}
+
 # Defining user's dict
 user    = {"personId":"","personEmail":"","displayName":""}
 
-@app.route('/apiai', methods=['POST','GET'])
-def apiai():
-    req = request.get_json(silent=True, force=True)
-    print("[API.ai] There is an action: "+req["result"]["action"])    #This only
-                                                  #exists if POSTed from apia.ia
-    res = apiai_webhook(req)
-    print ("DONE: POSTing to api.ai")
-    res = json.dumps(res, indent=4)
-    r = make_response(res)
-    r.headers['Content-Type'] = 'application/json'
-    return r
-
+# Message Received from Spark
 @app.route('/webhook', methods=['POST','GET'])
 def webhook():
+    # Speed meassuring variable
+    start = time.time()
+    # Every message from Spark is received here. I will be analyzed and sent to
+    # api.ai response will then sent back to Spark
     req = request.get_json(silent=True, force=True)
-    print ('[Spark]')
+    #print ('[Spark]')
+    res = spark_webhook(req, start)
+    #print (res)
+    return None
 
-    res = spark_webhook(req)
+@app.route('/apiai', methods=['POST','GET'])
+def apiai():
+    # If there is external data to retrieve, APIai will send a WebHook here
+    req = request.get_json(silent=True, force=True)
+    print("[API.ai] There is an action: "+req["result"]["action"])
+    res = apiai_webhook(req)
     res = json.dumps(res, indent=4)
     r = make_response(res)
     r.headers['Content-Type'] = 'application/json'
     return r
 
-def spark_webhook (req):
-    # JSON is from Spark. This will contain the message, a personId and a
-    # personEmail that will be buffered for future use
+def spark_webhook (req, start):
+    # JSON is from Spark. This will contain the message, a personId, displayName,
+    # and a personEmail that will be buffered for future use
     if sdk.buffer_it(req, sbuffer):
-        return {"Buffer": "Buffer correct"}
-    else: return {"Buffer": "Buffer error"}
+        # Once this is done, we need to prepare and send the message for APIai
+        status = nlpApiai.apiai_send (ai, sbuffer, abuffer)
+        #sdk.confident()
+        # Answer from api.ai may include an action to post attachments
+        if "att." in str(abuffer['action']):
+            status = sdk.prepare_attachment(sbuffer, abuffer)
+            print("Status attachement: "+ str(status))
+        #print("Convert to spark")
+        nlpApiai.apiai2spark(abuffer, sbuffer)
+        # To add time elapsed, concatenate with message: + " \n\n \n\n Time
+        # elapsed: " + str(timedelta(seconds=time.time() - start))
+        status = spark.bot_answer(
+                            sbuffer['message']
+                                  + " \n\n \n\n Time elapsed: "
+                                  + str(timedelta(seconds=time.time() - start)),
+                            sbuffer['file'],
+                            None,
+                            sbuffer['roomId'])
+    else: status = "Error buffering"
+    return status
+
 
 def apiai_webhook(req):
     # JSON is from api.ai. This will contain the message, the action and the
@@ -86,11 +125,34 @@ def apiai_webhook(req):
     # api.ai request to search for an employee
     action = req.get("result").get("action")
     if  action == 'search.query':
-        print ("Asked to search something in smartsheet")
-        query = req.get("result").get("parameters").get("query")
-        string_res = sdk.search_employee(smartsheet, query)
+        if sdk.get_user(req, sbuffer, user):
+            print ("Asked to search something in smartsheet")
+            query = req.get("result").get("parameters").get("query")
+            string_res = sdk.search_employee(smartsheet, query)
+        else:
+            string_res="Fallo en la obtención del usuario desde Spark. Pruebe \
+                        de nuevo, por favor."
 
     # api.ai request to search PAM of a particular partner
+    elif action == 'search.am':
+        print ("Asked to search AM")
+        client = req.get("result").get("parameters").get("client")
+        if sdk.get_user(req, sbuffer, user):
+            am = sdk.search_am (smartsheet, user, client)
+            string_res= str(am)
+        else:
+            string_res="Fallo en la obtención del usuario desde Spark. Pruebe \
+                        de nuevo, por favor."
+        #print (string_res)
+
+        #api.ai request to search PAM of the user that ask for it
+    elif action == 'search.myam':
+        print ("Asked to search my AM")
+        if sdk.get_user(req, sbuffer, user):
+            am = sdk.search_am (smartsheet, user)
+            string_res= str(am)
+        print(string_res)
+        # api.ai request to search PAM of a particular partner
     elif action == 'search.pam':
         print ("Asked to search PAM")
         partner = req.get("result").get("parameters").get("partner")
@@ -100,20 +162,15 @@ def apiai_webhook(req):
         else:
             string_res="Fallo en la obtención del usuario desde Spark. Pruebe \
                         de nuevo, por favor."
-            print(string_res)
+        #print (string_res)
 
-    #api.ai request to search PAM of the user that solicites it
+    #api.ai request to search PAM of the user that ask for it
     elif action == 'search.mypam':
         print ("Asked to search my PAM")
-        sdk.get_user(req, sbuffer, user)
         if sdk.get_user(req, sbuffer, user):
             pam = sdk.search_pam (smartsheet, user)
-            string_res= pam
-        else:
-            string_res="Fallo en la obtención del usuario desde Spark. Pruebe \
-                        de nuevo, por favor."
-            print(string_res)
-        string_res="No Yet Implemented (alice:line105)"
+            string_res= str(pam)
+        print(string_res)
 
     # api.ai request to add a Partner to a specific Team
     elif action == 'add.sparkclinic':
@@ -129,8 +186,6 @@ def apiai_webhook(req):
     else:
         string_res = "Ooops, se ha solicitado a Alice algo no implementado\n\t \
                     Action: " + str(action)
-    #return{str(string_res)}
-    #res = sdk.answer_json(str(string_res))
     return{
         "speech": str(string_res),
         "displayText": str(string_res),

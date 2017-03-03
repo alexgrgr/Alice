@@ -7,14 +7,18 @@
 # and perform a search of the parameter 'employee' on all sheets on Smartsheet #
 ################################################################################
 
+from ciscosparkapi import CiscoSparkAPI
 import json
 import requests
 import os
 
+#Instantiation of Spark object
+spark = CiscoSparkAPI()
+
 # Spark's header with Token defined in environmental variables
 spark_header = {
         'Authorization': 'Bearer ' + os.environ.get('SPARK_ACCESS_TOKEN', None),
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json; charset: utf-8'
         }
 
 #-----------------------------List of Team--------------------------------------
@@ -62,29 +66,53 @@ def get_displayName (personId):
     JSON = message.json()
     return JSON.get("displayName")
 
-def bot_answer(room, message="No message", user=None, roomId=None):
-    # This will generate a response made by the bot independently of the one sent
-    # by api.ai
-    if room == 'sameRoom':
+def mention (displayName, personEmail):
+    # Formats a mention in a spark markdown message
+    mention = "<@personEmail:"+ personEmail + "|" + displayName +">"
+    return mention
+
+def bot_answer(message, files, user= None, roomId= None):
+    # This will generate a response to spark
+
+    # [Debug]
+    print ('Send to spark: \t'+ str(message))
+    # [Debug] print ('Send to user: \t' + str(user))
+    # [Debug] print ('Send to room: \t' + str(roomId))
+    if roomId != None:
         #Send in roomId received
-        r = requests.post('https://api.ciscospark.com/v1/messages',
+        if files['name'] is "":
+            r = requests.post('https://api.ciscospark.com/v1/messages',
                          headers=spark_header, data=json.dumps({"roomId":roomId,
-                                                               "message":message
+                                                               "markdown":message
                                                                 }))
-    elif room == 'private':
-        #Send to user
-        r = requests.post('https://api.ciscospark.com/v1/messages',
-                           headers=spark_header,
-                           data=json.dumps({"personEmail" : user['personEmail'],
-                                                "message" : message
-                                            }))
+        else:
+            r = requests.post('https://api.ciscospark.com/v1/messages',
+                         headers=spark_header, data=json.dumps({"roomId":roomId,
+                                                               "markdown":message,
+                                      "files": (str(files['name']),
+                                                open(files['path'], 'rb'),
+                                                 str(files['filetype']))
+                                                                            }))
+    elif user != None:
+        if files['name'] is "":
+            #Send to user
+            r = requests.post('https://api.ciscospark.com/v1/messages',
+                               headers=spark_header,
+                               data=json.dumps({"personEmail":user['personEmail'],
+                                                   "markdown":message
+                                                }))
+        else:
+            r = requests.post('https://api.ciscospark.com/v1/messages',
+                               headers=spark_header,
+                               data=json.dumps({"personEmail":user['personEmail'],
+                                                   "markdown":message,
+                                                      "files":files
+                                                }))
     else:
-        #Get roomId from the name string
-        r = requests.post('https://api.ciscospark.com/v1/messages',
-                         headers=spark_header, data=json.dumps({"roomId":roomId,
-                                                               "message":message
-                                                                }))
+        print ("Send Message: No RoomId or UserId specified")
+
     print("Code after send_message POST: "+str(r.status_code))
+    status= "Message sent to Spark"
     if r.status_code !=200:
         print(str(json.loads(r.text)))
         if   r.status_code == 403:
@@ -100,5 +128,7 @@ def bot_answer(room, message="No message", user=None, roomId=None):
             status= "Lo siento. Parece ser que los servidores de Spark no \
                                             pueden recibir mensajes ahora mismo"
         else:
-            status='Unknown error 4xx/5xx'
+            response = r.json()
+            status= str('Error desconocido: \ '
+                                         + response['errors'][0]['description'])
     return status
