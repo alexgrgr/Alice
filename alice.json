@@ -1,12 +1,12 @@
 {
   "name": "API.AI - Spark advance integration",
-  "description": "Advance Limited Integration Capabilities  Exposed",
-  "repository": "https://github.com/alexgrgr/apiai-fulfillment",
+  "description": "Advanced Limited Integration Capabilities  Exposed",
+  "repository": "https://github.com/alexgrgr/apiai-nlp",
   "logo": "http://xvir.github.io/img/apiai.png",
-  "keywords": ["api.ai", "natural language"],
+  "keywords": ["api.ai", "natural language","Cisco Spark"],
   "env": {
     "APP_NAME": {
-      "description": "alice-apiai",
+      "description": "alice-backend",
       "value": ""
     },
     "APIAI_ACCESS_TOKEN": {

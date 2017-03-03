@@ -1,6 +1,8 @@
-# How to use a Spark Bot to answer a user´s *natural language* question with the ability to retreive data from external sources
+#ALICE: Advanced Limited Integration Capabilities  Exposed
 
-This example shows how you can use a NLP (*Natural Language Procesor*), such as `Api.ai` and `Watson` in a near future, to provide
+## How to use a Spark Bot to answer a user´s *natural language* question with the ability to retreive data from external sources
+
+This example shows how you can use a NLP (*Natural Language Procesor*), such as `Api.ai` or `Watson` in a probable future release, to provide
 information allocated at external sources or stored at the NLP database, in an easy way. This information and sources are described later in [`actions`](#actions).
 
 
@@ -21,18 +23,20 @@ An intent with **webhook enabled** is needed, and the following values for `acti
 + `search.pam`: it will verify that the person asking is authorized to know that
 data. Then, his/her PAM will be searched on Smartsheet. Finally, the bot will
 announce on the group asked that it is a sensitive data and that it will tell
-the employee in a 1-to-1 room.
+the employee in a 1-to-1 room. ***Not yet implemented***
 
 + `search.mypam`: same as `search.pam` but only to get owns PAM data. Partners will
 be answered in a 1-to-1 room.
 
-+ `search.am` : only for internal employees, it will search comercial's data for
-a given customer.
-
-+ `add.sparkclinic`: partner will be added to the room he asked to be in.
++ `search.am`: in this case, after a user verification, the account manager of a
+given customer is retreived.
++`search.myam`: with a list of customers at smartsheet, it could tell him who is
+his account manager.
++ `add.sparkclinic`: partner will be added to the room he asked to be in if the
+list of rooms is added to the code. NLP processing used to get an exact ID.
 
 **Note**: code for smartsheet is currently adapted to use specific Sheet IDs and
-rows. This will change in a future to work with any IDs.
+rows. This could change in a future to work with any ID.
 
 ###Environmental variables
 You will also need to set this *environmental variables* in [*Heroku*](https://devcenter.heroku.com/articles/config-vars#setting-up-config-vars-for-a-deployed-application "Set Env variables"):
@@ -54,6 +58,9 @@ You will also need to set this *environmental variables* in [*Heroku*](https://d
 ##Changelog
 
 ##### New features:
++ Pregunta en otra sala para proporcionar una respuesta y la aprende
++ Se pueden añadir preguntas o modificar respuestas hablando con él por Spark
++ Preguntas confidenciales responder por privado
 + Distingue entre partners, empleados de Cisco y el resto del mundo
 + Uso de *Markdown* para enviar mensajes
 + Poder mandar archivos a las salas o a personas
@@ -63,9 +70,6 @@ You will also need to set this *environmental variables* in [*Heroku*](https://d
 + Fácil añadir funciones
 
 ##### Planned:
-+ Pregunta en otra sala para proporcionar una respuesta y la aprende
-+ Se pueden añadir preguntas o modificar respuestas hablando con él por Spark
-+ Preguntas confidenciales responder por privado
 + Fácil futura integración con Watson
 + Posible integración con Spark Video SDK
 + Mandar emails

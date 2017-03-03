@@ -7,9 +7,13 @@
 # and perform a search of the parameter 'employee' on all sheets on Smartsheet #
 ################################################################################
 
+from ciscosparkapi import CiscoSparkAPI
 import json
 import requests
 import os
+
+#Instantiation of Spark object
+spark = CiscoSparkAPI()
 
 # Spark's header with Token defined in environmental variables
 spark_header = {

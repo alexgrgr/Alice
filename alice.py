@@ -29,24 +29,18 @@
 #                                       --------------------------             #
 #                                       |                                      #
 # Spark<-----------------Alice<---------                                       #
-# Actions specified:                                                           #
-#   ·Search query in smartsheet [OK]                                           #
-#   ·Add user to a team [OK- Not for all teams ]                               #
-#   ·Search Partner's PAM and send it privately to Partner [Waiting]           #
-#   ·Create a demo personal room for trial and sent info to mail [Waiting]     #
-#                                                                              #
-# personID or personEmail is needed to know who are we talking to              #
 ################################################################################
 
 import smartsheet
-import sdk
 import time
-import spark
 import json
 import os
 import apiai
-import nlpApiai
 from datetime import timedelta
+
+import sdk
+import spark
+import nlpApiai
 
 from flask import Flask
 from flask import request
@@ -58,8 +52,7 @@ app = Flask(__name__)
 # Instantiation of APIai object.
 ai = apiai.ApiAI(os.environ.get('APIAI_ACCESS_TOKEN', None))
 
-# Instantiation of Smartsheet object. It is a custom object. Be careful guessing
-# the content in objects. Refer directly to the library code, not API Docs.
+# Instantiation of Smartsheet object
 smartsheet = smartsheet.Smartsheet()
 
 # Buffer for capturing messages from Spark
@@ -67,14 +60,15 @@ sbuffer = {"timestamp":float(6),"sessionId":"","roomId":"","message":"",
            "personId":"","personEmail":"","displayName":"",
            "file":{"name":"","path":"","filetype":""}}
 # Buffer for capturing messages from api.ai
-#abuffer = {k: {"timestamp":float(6),"message":"","action":"",
-#                                             "parameters":""} for k in range(4)}
 abuffer = {"sessionId":"","confident":"", "message":"","action":"",
                                 "parameters":""}
+# Buffer for capturing messages from Watson Conversation
+wbuffer = {}
 
 # Defining user's dict
 user    = {"personId":"","personEmail":"","displayName":""}
 
+# Message Received from Spark
 @app.route('/webhook', methods=['POST','GET'])
 def webhook():
     # Speed meassuring variable
@@ -84,7 +78,7 @@ def webhook():
     req = request.get_json(silent=True, force=True)
     #print ('[Spark]')
     res = spark_webhook(req, start)
-    print (res)
+    #print (res)
     return None
 
 @app.route('/apiai', methods=['POST','GET'])
@@ -111,9 +105,12 @@ def spark_webhook (req, start):
             print("Status attachement: "+ str(status))
         #print("Convert to spark")
         nlpApiai.apiai2spark(abuffer, sbuffer)
+        # To add time elapsed, concatenate with message: + " \n\n \n\n Time
+        # elapsed: " + str(timedelta(seconds=time.time() - start))
         status = spark.bot_answer(
-                            sbuffer['message'] + " \n\n \n\n Time elapsed: " +
-                                    str(timedelta(seconds=time.time() - start)),
+                            sbuffer['message']
+                                  + " \n\n \n\n Time elapsed: "
+                                  + str(timedelta(seconds=time.time() - start)),
                             sbuffer['file'],
                             None,
                             sbuffer['roomId'])
@@ -146,7 +143,7 @@ def apiai_webhook(req):
         else:
             string_res="Fallo en la obtención del usuario desde Spark. Pruebe \
                         de nuevo, por favor."
-        print (string_res)
+        #print (string_res)
 
         #api.ai request to search PAM of the user that ask for it
     elif action == 'search.myam':
@@ -165,7 +162,7 @@ def apiai_webhook(req):
         else:
             string_res="Fallo en la obtención del usuario desde Spark. Pruebe \
                         de nuevo, por favor."
-        print (string_res)
+        #print (string_res)
 
     #api.ai request to search PAM of the user that ask for it
     elif action == 'search.mypam':
