@@ -83,7 +83,7 @@ def is_cisco (user):
 def is_partner (smartsheet, user):
     # If user appears on Smartsheet, then is must be a Cisco Spain Partner
     # this information is on sheetid= 6064162607523716
-    sheetId = 6064162607523716
+    sheetId = os.environ.get('PARTNERS_SHEET', 6064162607523716)
     search_res = smartsheet.Search.search_sheet(sheetId, user['personEmail'])
     try:
         if search_res.results[0].text in user['PersonEmail']: return True
@@ -97,9 +97,11 @@ def search_am (smartsheet, user, client=None):
     # in an array in order to search in all them with a loop
     sheet = 0;
     # Total number of sheets
+    #Better to use
+    sheetId_0 = os.environ.get('AM_SHEET_0', 7064249500493700)
+    sheetId_1 = os.environ.get('AM_SHEET_1', 4478747907778436)
+
     total_sheets = 2
-    sheetId_0 = 7064249500493700
-    sheetId_1 = 4478747907778436
     sheetId   = [sheetId_0, sheetId_1]
     # if there is a client string, then you are asking for an AM different to
     # user's one. This info can only be disclosed internally, so Alice should
@@ -152,7 +154,7 @@ def search_am (smartsheet, user, client=None):
 def search_pam (smartsheet, user, partner=None):
     # The PAM of the specified user is searched or user's PAM. The sheet with
     # this information has sheetid= 6064162607523716
-    sheetId = 6064162607523716
+    sheetId = os.environ.get('PAM_SHEET', 6064162607523716)
     # if there is a partner string, then you are asking for a PAM different to
     # user's one. This info can only be disclosed internally, so Alice should
     # check first if this user is a Cisco employee. If asking for own PAM, Alice

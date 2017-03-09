@@ -1,13 +1,12 @@
 {
-  "name": "API.AI - Spark advance integration",
+  "name": "ALICE",
   "description": "Advanced Limited Integration Capabilities  Exposed",
-  "repository": "https://github.com/alexgrgr/apiai-nlp",
+  "repository": "https://github.com/alexgrgr/alice",
   "logo": "http://xvir.github.io/img/apiai.png",
   "keywords": ["api.ai", "natural language","Cisco Spark"],
   "env": {
     "APP_NAME": {
-      "description": "alice-backend",
-      "value": ""
+      "description": "alice-backend"
     },
     "APIAI_ACCESS_TOKEN": {
       "description": "Client access token for Api.ai",
@@ -27,7 +26,18 @@
     },
     "BOT_EMAIL": {
       "description": "Email Ending with @sparkbot.io Here",
-      "value": ""
+      "value": "@sparkbot.io"
     },
-
+    "AM_SHEET_0":{
+      "description":"First Sheet containing AMs info",
+      "value":"7064249500493700"
+    },
+    "AM_SHEET_1":{
+      "description":"Second Sheet containing AMs info",
+      "value":"4478747907778436"
+    },
+    "PAM_SHEET":{
+      "description":"Sheet containing PAMs info",
+      "value":"6064162607523716"
+    }
   }
