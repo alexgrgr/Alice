@@ -1,4 +1,4 @@
-#ALICE: Advanced Limited Integration Capabilities  Exposed
+# ALICE: Advanced Limited Integration Capabilities  Exposed
 
 ## How to use a Spark Bot to answer a user´s *natural language* question with the ability to retreive data from external sources
 
@@ -38,7 +38,7 @@ list of rooms is added to the code. NLP processing used to get an exact ID.
 **Note**: code for smartsheet is currently adapted to use specific Sheet IDs and
 rows. This could change in a future to work with any ID.
 
-###Environmental variables
+### Environmental variables
 You will also need to set this *environmental variables* in [*Heroku*](https://devcenter.heroku.com/articles/config-vars#setting-up-config-vars-for-a-deployed-application "Set Env variables"):
 
 |                Variable | Value                                                            |
@@ -50,12 +50,12 @@ You will also need to set this *environmental variables* in [*Heroku*](https://d
 |      SPARK_ACCESS_TOKEN | Your bot´s Token to access *Spark* *API*                         |
 |               BOT_EMAIL | Your bot´s email to discard its own messages                     |
 
-####How to get a *Token*
+#### How to get a *Token*
 
 + **Smartsheet**: follow steps in [Documentation](http://smartsheet-platform.github.io/api-docs/#generating-access-token "Generate Access Token")
 + **Spark**: follow steps in [Documentation->Creating a Spark Bot](https://developer.ciscospark.com/bots.html "Create Bot and Generate Access Token")
 
-##Changelog
+## Changelog
 
 ##### New features:
 + Pregunta en otra sala para proporcionar una respuesta y la aprende
